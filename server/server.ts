@@ -3,10 +3,10 @@
  */
 import express = require('express');
 
-let publicPath = 'public';
+let publicPath = './../public';
 
 let app = express();
-app.use(express.static(publicPath))
+app.use(express.static(publicPath));
 
 let port = process.env.PORT || 3000;
 
