@@ -5,7 +5,9 @@ import express = require('express');
 import socketIO = require('socket.io');
 import http = require('http');
 
-import {generateMessage, generateLocationMessage} from './../utils/generate';
+import {generateMessage, generateLocationMessage} from './utils/generate';
+import {isRealString} from './utils/validation';
+import {Users} from './utils/users';
 import path = require('path');
 
 let publicPath = path.join(__dirname, '../public');
@@ -16,13 +18,26 @@ app.use(express.static(publicPath));
 
 let server = http.createServer(app);
 let io = socketIO(server);
+let users = new Users();
+
 
 io.on('connection', (socket) => {
     console.log("new user connected");
 
-    socket.emit('newMessage', generateMessage('Admin', 'Welcome to server'));
+    socket.on('join', (params, callback) => {
+        if(!isRealString(params.name) || !isRealString(params.room)) {
+            return callback('Name and room not valid');
+        }
 
-    socket.broadcast.emit('newMessage', generateMessage('Admin', 'New user joined the server'));
+        socket.join(params.room);
+        users.removeUser(socket.id);
+        users.addUser(socket.id, params.name, params.room);
+        io.to(params.room).emit('updateUserList', users.getUserList(params.room));
+
+        socket.emit('newMessage', generateMessage('Admin', 'Welcome to server'));
+        socket.broadcast.to(params.room).emit('newMessage', generateMessage('Admin', `${params.name} joined`));
+        callback();
+    });
 
     socket.on('createMessage', (message, callback) => {
         console.log('createMessage', message);
@@ -35,6 +50,13 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
+        let user = users.removeUser(socket.id);
+
+        if(user) {
+            io.to(user.room).emit('updateUserList', users.getUserList(user.room));
+            io.to(user.room).emit('newMessage', generateMessage('Admin', `${user.name} has left`));
+        }
+
         console.log('user disconnected');
     });
 });
