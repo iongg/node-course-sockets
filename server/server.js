@@ -33,11 +33,15 @@ io.on('connection', function (socket) {
     });
     socket.on('createMessage', function (message, callback) {
         console.log('createMessage', message);
-        io.emit('newMessage', generate_1.generateMessage(message.from, message.text));
+        var user = users.getUser(socket.id);
+        if (user && validation_1.isRealString(message.text)) {
+            io.to(user.room).emit('newMessage', generate_1.generateMessage(user.name, message.text));
+        }
         callback('This is from the server');
     });
     socket.on('createLocationMessage', function (coords) {
-        io.emit('newLocationMessage', generate_1.generateLocationMessage('Admin', coords.latitude, coords.longitude));
+        var user = users.getUser(socket.id);
+        io.to(user.room).emit('newLocationMessage', generate_1.generateLocationMessage(user.name, coords.latitude, coords.longitude));
     });
     socket.on('disconnect', function () {
         var user = users.removeUser(socket.id);
